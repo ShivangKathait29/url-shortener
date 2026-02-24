@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "predev": "powershell -Command \"Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }\"",
     "dev": "node --watch index",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push"
@@ -23,6 +24,7 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "express": "~4.22.1",
-    "pg": "^8.18.0"
+    "pg": "^8.18.0",
+    "zod": "^4.3.6"
   }
 }
