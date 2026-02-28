@@ -1,86 +1,71 @@
 import express from "express";
-import { usersTable } from "../models/index.js";
 import { db } from "../db/index.js";
-import { eq } from "drizzle-orm";
-import { randomBytes, createHmac } from "crypto";
-import {signupPostRequestSchema} from "../validation/request.validation.js";
+import { usersTable } from "../models/index.js";
+import { createUserToken } from "../utils/token.js"
+import { signupPostRequestSchema, loginPostRequestSchema } from "../validation/request.validation.js";
+import { hashPasswordWithSalt } from "../utils/hash.js";
+import { getUserByEmail } from "../services/user.service.js";
 
 const router = express.Router();
 
 router.post("/signup", async (req, res) => {
-  const validationResult = await signupPostRequestSchema.safeParseAsync(req.body);
+  const validationResult = signupPostRequestSchema.safeParse(req.body);
 
-  if(validationResult.error){
-    return res.status(400).json({error: validationResult.error.format()});
+  if (validationResult.error) {
+    return res.status(400).json({ error: validationResult.error.format() });
   }
 
   const { firstname, lastname, email, password } = validationResult.data;
 
-  if (
-    typeof firstname !== "string" ||
-    typeof lastname !== "string" ||
-    typeof email !== "string" ||
-    typeof password !== "string"
-  ) {
-    return res.status(400).json({ message: "Invalid input types." });
-  }
-  const trimmedFirstname = firstname.trim();
-  const trimmedLastname = lastname.trim();
-  const trimmedEmail = email.trim();
-  const trimmedPassword = password;
-  if (
-    !trimmedFirstname ||
-    !trimmedLastname ||
-    !trimmedEmail ||
-    !trimmedPassword
-  ) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Missing required fields: firstname, lastname, email, and password are all required.",
-      });
-  }
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(trimmedEmail)) {
-    return res.status(400).json({ message: "Invalid email format." });
-  }
-  if (trimmedPassword.length < 8) {
-    return res
-      .status(400)
-      .json({ message: "Password must be at least 8 characters long." });
-  }
   try {
-    const [existingUser] = await db
-      .select({
-        id: usersTable.id,
-      })
-      .from(usersTable)
-      .where(eq(usersTable.email, email));
-    if (existingUser)
-      return res
-        .status(400)
-        .json({ message: `User with email ${email} already exists!` });
+    const existingUser = await getUserByEmail(email);
 
-    const salt = randomBytes(256).toString("hex");
-    const hashedPassword = createHmac("sha256", salt)
-      .update(password)
-      .digest("hex");
-    const user = await db
+    if (existingUser) {
+      return res.status(400).json({ message: `User with email ${email} already exists!` });
+    }
+
+    const { password: hashedPassword, salt } = hashPasswordWithSalt(password);
+
+    const [user] = await db
       .insert(usersTable)
-      .values({
-        firstname,
-        lastname,
-        email,
-        salt,
-        password: hashedPassword,
-      })
+      .values({ firstname, lastname, email, salt, password: hashedPassword })
       .returning({ id: usersTable.id });
-    if (!user) return res.status(500).json({ message: "User creation failed" });
-    return res.status(201).json({ data: { userId: user[0].id } });
+
+    return res.status(201).json({ data: { userId: user.id } });
   } catch (error) {
     console.error("Error during user signup:", error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/login", async (req, res) => {
+  const validationResult = loginPostRequestSchema.safeParse(req.body);
+
+  if (validationResult.error) {
+    return res.status(400).json({ error: validationResult.error.format() });
+  }
+
+  const { email, password } = validationResult.data;
+
+  try {
+    const user = await getUserByEmail(email);
+
+    if (!user) {
+      return res.status(401).json({ error: `User with email ${email} does not exist` });
+    }
+
+    const { password: hashedPassword } = hashPasswordWithSalt(password, user.salt);
+
+    if (hashedPassword !== user.password) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const token = await createUserToken({ id: user.id });
+
+    return res.json({ token });
+  } catch (error) {
+    console.error("Error during login:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
