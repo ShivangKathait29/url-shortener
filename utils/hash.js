@@ -1,10 +1,9 @@
-import { randomBytes, createHmac } from "crypto";
+import { randomBytes, scryptSync } from "crypto";
+ 
+ export function hashPasswordWithSalt(password, userSalt = undefined) {
 
-export function hashPasswordWithSalt(password, userSalt = undefined) {
-  const salt = userSalt ?? randomBytes(256).toString("hex");
-  const hashedPassword = createHmac("sha256", salt)
-    .update(password)
-    .digest("hex");
-
-  return { password: hashedPassword, salt };
-}
+  const salt = userSalt ?? randomBytes(16).toString("hex");
+  const hashedPassword = scryptSync(password, salt, 64).toString("hex");
+ 
+   return { password: hashedPassword, salt };
+ }

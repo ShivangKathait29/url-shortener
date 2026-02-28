@@ -51,13 +51,13 @@ router.post("/login", async (req, res) => {
     const user = await getUserByEmail(email);
 
     if (!user) {
-      return res.status(400).json({ error: `User with email ${email} does not exist` });
+      return res.status(401).json({ error: `User with email ${email} does not exist` });
     }
 
     const { password: hashedPassword } = hashPasswordWithSalt(password, user.salt);
 
     if (hashedPassword !== user.password) {
-      return res.status(400).json({ error: "Invalid password" });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const token = await createUserToken({ id: user.id });

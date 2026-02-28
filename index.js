@@ -7,6 +7,7 @@ const PORT = process.env.PORT ?? 8000;
 
 app.use(express.json());
 app.use(authenticateMiddleware);
+app.use("/user", userRoutes);
 
 app.get('/', (req, res) => {
   return res.json({status :'Server is up and running...'});
