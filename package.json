@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "predev": "powershell -Command \"Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }\"",
+    "predev": "powershell -Command \"Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; exit 0\"",
     "dev": "node --watch index",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push"
@@ -21,9 +21,11 @@
     "tsx": "^4.21.0"
   },
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "express": "~4.22.1",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.18.0",
     "zod": "^4.3.6"
   }

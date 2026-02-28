@@ -1,14 +1,12 @@
 import express from 'express';
 import 'dotenv/config';
 import userRoutes from './routes/user.routes.js';
-
+import { authenticateMiddleware } from './middlewares/auth.middleware.js';
 const app = express();
 const PORT = process.env.PORT ?? 8000;
 
 app.use(express.json());
-app.use('/user', userRoutes);
-app.use('/api/users', userRoutes);
-
+app.use(authenticateMiddleware);
 
 app.get('/', (req, res) => {
   return res.json({status :'Server is up and running...'});
