@@ -34,26 +34,48 @@ router.post("/shorten", ensureAuthenticated, async (req, res) => {
 });
 
 router.get('/codes', ensureAuthenticated, async (req, res) => {
-    const codes = await db
-    .select()
-    .from(urlsTable)
-    .where(eq(urlsTable.userId, req.user.id));
-    return res.json({ codes });
+    try {
+     const codes = await db
+      .select()
+      .from(urlsTable)
+      .where(eq(urlsTable.userId, req.user.id));
+     return res.json({ codes });
+  } catch (error) {
+    console.error("Error fetching codes:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.delete('/:id', ensureAuthenticated, async (req, res) => {
     const id = req.params.id;
-    const result =await db
-    .delete(urlsTable)
-    .where(and(
-        eq(urlsTable.id, id),
-        eq(urlsTable.userId, req.user.id)));
-
-    return res.status(200).json({ deleted: true });
+     // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+        return res.status(400).json({ error: "Invalid URL ID format" });
+    }
+    
+    try {
+        const result = await db
+            .delete(urlsTable)
+            .where(and(
+                eq(urlsTable.id, id),
+                eq(urlsTable.userId, req.user.id)))
+            .returning({ id: urlsTable.id });
+        
+        if (result.length === 0) {
+            return res.status(404).json({ error: "URL not found" });
+        }
+        
+        return res.status(200).json({ deleted: true });
+    } catch (error) {
+        console.error("Error deleting URL:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 router.get("/:shortCode", async (req, res) => {
   const code = req.params.shortCode;
+  try{
   const [result] = await db
     .select({
       targetURL: urlsTable.targetURL,
@@ -65,6 +87,10 @@ router.get("/:shortCode", async (req, res) => {
     return res.status(404).json({ error: "Invalid URL" });
   }
   return res.redirect(result.targetURL);
+}catch (error) {
+    console.error("Error resolving short URL:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 export default router;

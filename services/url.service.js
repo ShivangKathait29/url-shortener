@@ -2,6 +2,7 @@ import { db } from "../db/index.js";
 import { urlsTable } from "../models/index.js";
 
 export async function createShortUrl({ shortCode, targetURL, userId }) {
+    try{
   const [result] = await db
     .insert(urlsTable)
     .values({
@@ -16,4 +17,12 @@ export async function createShortUrl({ shortCode, targetURL, userId }) {
     });
 
   return result;
+}catch (error) {
+    if (error.code === '23505') { // PostgreSQL unique violation
+      const err = new Error('Short code already exists');
+      err.code = 'DUPLICATE_CODE';
+      throw err;
+    }
+    throw error;
+  }
 }
