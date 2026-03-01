@@ -11,3 +11,8 @@ export const loginPostRequestSchema = z.object({
     email: z.string().email(),
     password: z.string().min(8, 'Password must be at least 8 characters long'),
 }); 
+
+export const shortenUrlRequestSchema = z.object({
+    url: z.string().url(),
+    code : z.string().optional(),
+});
