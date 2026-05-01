@@ -4,6 +4,7 @@ import userRoutes from './routes/user.routes.js';
 import urlRouter from './routes/url.routes.js';
 import { authenticateMiddleware } from './middlewares/auth.middleware.js';
 import { securityHeaders } from './middlewares/security.middleware.js';
+
 const app = express();
 const PORT = process.env.PORT ?? 8000;
 
