@@ -1,11 +1,12 @@
 import express from 'express';
 import { shortenUrlRequestSchema } from "../validation/request.validation.js";
-import { nanoid } from 'nanoid';
 import { ensureAuthenticated } from '../middlewares/auth.middleware.js';
 import { createShortUrl } from '../services/url.service.js';
 import { urlsTable } from '../models/url.model.js';
 import { db } from '../db/index.js';
 import { and, eq } from 'drizzle-orm';
+import { base62Encode } from '../utils/base62.js';
+import { getNextId } from '../utils/counter.js';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.post("/shorten", ensureAuthenticated, async (req, res) => {
     }
 
     const { url, code } = validationResult.data;
-    const shortCode = code ?? nanoid(8);
+    const shortCode = code ?? base62Encode(await getNextId());
 
     try {
         const result = await createShortUrl({ shortCode, targetURL: url, userId: req.user.id });

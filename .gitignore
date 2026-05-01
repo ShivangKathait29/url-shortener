@@ -1,16 +1,33 @@
 # Node
 node_modules/
-pnpm-lock.yaml
+
+# Lock file (KEEP this, don't ignore)
+# pnpm-lock.yaml
 
 # Environment
 .env
+
+# Build
+dist/
+build/
 
 # Drizzle
 drizzle/
 
 # Logs
+*.log
 npm-debug.log*
 pnpm-debug.log*
 
 # OS
 .DS_Store
+
+# Python / virtual env
+graph-env/
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+
