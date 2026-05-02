@@ -84,8 +84,12 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
 router.get("/:shortCode", async (req, res) => {
   const code = req.params.shortCode;
   try {
-    // 1. Cache-aside: check Redis first
-    const cached = await redis.get(cacheKey(code));
+    let cached = null;
+    try {
+      cached = await redis.get(cacheKey(code));
+    } catch (err) {
+      console.error("Redis cache lookup failed:", err);
+    }
     if (cached) {
       return res.redirect(cached);
     }
@@ -101,7 +105,8 @@ router.get("/:shortCode", async (req, res) => {
     }
 
     // 3. Store in cache for future requests
-    await redis.set(cacheKey(code), result.targetURL, 'EX', CACHE_TTL);
+    redis.set(cacheKey(code), result.targetURL, 'EX', CACHE_TTL)
+      .catch((err) => console.error("Redis cache write failed:", err));
 
     return res.redirect(result.targetURL);
   } catch (error) {
