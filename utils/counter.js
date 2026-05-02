@@ -1,5 +1,7 @@
-let counter = Date.now(); // seed with timestamp to avoid collisions with existing codes
+import redis from '../cache/index.js';
+
+const COUNTER_KEY = 'url:counter';
 
 export async function getNextId() {
-  return ++counter;
+  return redis.incr(COUNTER_KEY);
 }

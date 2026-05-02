@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18
     container_name: url-shortener-db
     restart: always
     environment:
@@ -12,5 +12,20 @@ services:
     volumes:
       - db_data:/var/lib/postgresql
 
+  redis:
+    image: redis:7-alpine
+    container_name: url-shortener-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - redis_data:/data
+
 volumes:
   db_data:
+  redis_data:
