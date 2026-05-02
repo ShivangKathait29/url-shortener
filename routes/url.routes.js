@@ -7,6 +7,10 @@ import { db } from '../db/index.js';
 import { and, eq } from 'drizzle-orm';
 import { base62Encode } from '../utils/base62.js';
 import { getNextId } from '../utils/counter.js';
+import redis from '../cache/index.js';
+
+const CACHE_TTL = 60 * 60; // 1 hour in seconds
+const cacheKey = (code) => `url:redirect:${code}`;
 
 const router = express.Router();
 
@@ -56,16 +60,19 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
     }
     
     try {
-        const result = await db
+        const [deleted] = await db
             .delete(urlsTable)
             .where(and(
                 eq(urlsTable.id, id),
                 eq(urlsTable.userId, req.user.id)))
-            .returning({ id: urlsTable.id });
+            .returning({ id: urlsTable.id, shortCode: urlsTable.shortCode });
         
-        if (result.length === 0) {
+        if (!deleted) {
             return res.status(404).json({ error: "URL not found" });
         }
+
+        // Evict from cache so stale redirects don't survive
+        await redis.del(cacheKey(deleted.shortCode));
         
         return res.status(200).json({ deleted: true });
     } catch (error) {
@@ -76,19 +83,33 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
 
 router.get("/:shortCode", async (req, res) => {
   const code = req.params.shortCode;
-  try{
-  const [result] = await db
-    .select({
-      targetURL: urlsTable.targetURL,
-    })
-    .from(urlsTable)
-    .where(eq(urlsTable.shortCode, code));
+  try {
+    let cached = null;
+    try {
+      cached = await redis.get(cacheKey(code));
+    } catch (err) {
+      console.error("Redis cache lookup failed:", err);
+    }
+    if (cached) {
+      return res.redirect(cached);
+    }
 
-  if (!result) {
-    return res.status(404).json({ error: "Invalid URL" });
-  }
-  return res.redirect(result.targetURL);
-}catch (error) {
+    // 2. Cache miss: query Postgres
+    const [result] = await db
+      .select({ targetURL: urlsTable.targetURL })
+      .from(urlsTable)
+      .where(eq(urlsTable.shortCode, code));
+
+    if (!result) {
+      return res.status(404).json({ error: "Invalid URL" });
+    }
+
+    // 3. Store in cache for future requests
+    redis.set(cacheKey(code), result.targetURL, 'EX', CACHE_TTL)
+      .catch((err) => console.error("Redis cache write failed:", err));
+
+    return res.redirect(result.targetURL);
+  } catch (error) {
     console.error("Error resolving short URL:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
