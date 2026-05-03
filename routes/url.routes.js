@@ -7,10 +7,7 @@ import { db } from '../db/index.js';
 import { and, eq } from 'drizzle-orm';
 import { base62Encode } from '../utils/base62.js';
 import { getNextId } from '../utils/counter.js';
-import redis from '../cache/index.js';
-
-const CACHE_TTL = 60 * 60; // 1 hour in seconds
-const cacheKey = (code) => `url:redirect:${code}`;
+import { getCachedUrl, setCachedUrl, invalidateCachedUrl } from '../cache/url.cache.js';
 
 const router = express.Router();
 
@@ -30,6 +27,7 @@ router.post("/shorten", ensureAuthenticated, async (req, res) => {
 
     try {
         const result = await createShortUrl({ shortCode, targetURL: url, userId: req.user.id });
+        await setCachedUrl(shortCode, url);
 
         return res.status(201).json(result);
     } catch (error) {
@@ -72,7 +70,7 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
         }
 
         // Evict from cache so stale redirects don't survive
-        await redis.del(cacheKey(deleted.shortCode));
+        await invalidateCachedUrl(deleted.shortCode);
         
         return res.status(200).json({ deleted: true });
     } catch (error) {
@@ -84,30 +82,20 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
 router.get("/:shortCode", async (req, res) => {
   const code = req.params.shortCode;
   try {
-    let cached = null;
-    try {
-      cached = await redis.get(cacheKey(code));
-    } catch (err) {
-      console.error("Redis cache lookup failed:", err);
-    }
-    if (cached) {
-      return res.redirect(cached);
-    }
+    // 1. Check cache
+    const cached = await getCachedUrl(code);
+    if (cached) return res.redirect(cached);
 
-    // 2. Cache miss: query Postgres
+    // 2. DB fallback
     const [result] = await db
       .select({ targetURL: urlsTable.targetURL })
       .from(urlsTable)
       .where(eq(urlsTable.shortCode, code));
 
-    if (!result) {
-      return res.status(404).json({ error: "Invalid URL" });
-    }
+    if (!result) return res.status(404).json({ error: "Invalid URL" });
 
-    // 3. Store in cache for future requests
-    redis.set(cacheKey(code), result.targetURL, 'EX', CACHE_TTL)
-      .catch((err) => console.error("Redis cache write failed:", err));
-
+    // 3. Cache on miss
+    await setCachedUrl(code, result.targetURL);
     return res.redirect(result.targetURL);
   } catch (error) {
     console.error("Error resolving short URL:", error);
