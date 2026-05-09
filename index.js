@@ -6,6 +6,7 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import { authenticateMiddleware } from './middlewares/auth.middleware.js';
 import { securityHeaders } from './middlewares/security.middleware.js';
 import { initCounter } from './utils/counter.js';
+import redis from './cache/index.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 8000;
@@ -28,5 +29,10 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-process.on('SIGTERM', () => process.exit(0));
-process.on('SIGINT', () => process.exit(0));
+async function shutdown() {
+  console.log('Shutting down...');
+  await redis.quit();
+  process.exit(0);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
