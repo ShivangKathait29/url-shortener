@@ -2,6 +2,7 @@ import express from 'express';
 import 'dotenv/config';
 import userRoutes from './routes/user.routes.js';
 import urlRouter from './routes/url.routes.js';
+import analyticsRoutes from './routes/analytics.routes.js';
 import { authenticateMiddleware } from './middlewares/auth.middleware.js';
 import { securityHeaders } from './middlewares/security.middleware.js';
 import { initCounter } from './utils/counter.js';
@@ -14,6 +15,7 @@ app.use(securityHeaders);
 app.use(authenticateMiddleware);
 
 app.use("/user", userRoutes);
+app.use("/analytics", analyticsRoutes);
 app.use(urlRouter);
 
 app.get('/', (req, res) => {

@@ -8,6 +8,7 @@ import { and, eq } from 'drizzle-orm';
 import { base62Encode } from '../utils/base62.js';
 import { getNextId } from '../utils/counter.js';
 import { getCachedUrl, setCachedUrl, invalidateCachedUrl } from '../cache/url.cache.js';
+import { enqueueClickEvent } from '../queue/click.producer.js';
 
 const router = express.Router();
 
@@ -108,6 +109,7 @@ router.get("/:shortCode", async (req, res) => {
     // 2. DB fallback — also fetch expiresAt for expiry check
     const [result] = await db
       .select({
+        id: urlsTable.id,
         targetURL: urlsTable.targetURL,
         expiresAt: urlsTable.expiresAt,
       })
@@ -123,6 +125,14 @@ router.get("/:shortCode", async (req, res) => {
 
     // 3. Cache on miss
     await setCachedUrl(code, result.targetURL);
+
+    enqueueClickEvent({
+      urlId: result.id,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      referer: req.get('referer'),
+    }).catch(() => {}); // fire-and-forget
+
     return res.redirect(result.targetURL);
   } catch (error) {
     console.error("Error resolving short URL:", error);

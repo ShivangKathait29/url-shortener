@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "worker": "node workers/click.worker.js",
     "predev": "powershell -Command \"Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; exit 0\"",
     "dev": "node --watch index",
     "db:studio": "drizzle-kit studio",
@@ -22,9 +23,12 @@
     "tsx": "^4.21.0"
   },
   "dependencies": {
+    "bullmq": "^5.76.6",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "express": "~4.22.1",
+    "express-useragent": "^2.1.0",
+    "geoip-lite": "^2.0.2",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.18.0",
