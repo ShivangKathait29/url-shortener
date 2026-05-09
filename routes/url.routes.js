@@ -7,6 +7,7 @@ import { db } from '../db/index.js';
 import { and, eq } from 'drizzle-orm';
 import { base62Encode } from '../utils/base62.js';
 import { getNextId } from '../utils/counter.js';
+import { getCachedUrl, setCachedUrl, invalidateCachedUrl } from '../cache/url.cache.js';
 
 const router = express.Router();
 
@@ -26,6 +27,7 @@ router.post("/shorten", ensureAuthenticated, async (req, res) => {
 
     try {
         const result = await createShortUrl({ shortCode, targetURL: url, userId: req.user.id });
+        await setCachedUrl(shortCode, url);
 
         return res.status(201).json(result);
     } catch (error) {
@@ -75,16 +77,19 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
     }
     
     try {
-        const result = await db
+        const [deleted] = await db
             .delete(urlsTable)
             .where(and(
                 eq(urlsTable.id, id),
                 eq(urlsTable.userId, req.user.id)))
-            .returning({ id: urlsTable.id });
+            .returning({ id: urlsTable.id, shortCode: urlsTable.shortCode });
         
-        if (result.length === 0) {
+        if (!deleted) {
             return res.status(404).json({ error: "URL not found" });
         }
+
+        // Evict from cache so stale redirects don't survive
+        await invalidateCachedUrl(deleted.shortCode);
         
         return res.status(200).json({ deleted: true });
     } catch (error) {
@@ -95,26 +100,31 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
 
 router.get("/:shortCode", async (req, res) => {
   const code = req.params.shortCode;
-  try{
-  const [result] = await db
-    .select({
-      targetURL: urlsTable.targetURL,
-      expiresAt: urlsTable.expiresAt,
-    })
-    .from(urlsTable)
-    .where(eq(urlsTable.shortCode, code));
+  try {
+    // 1. Check cache
+    const cached = await getCachedUrl(code);
+    if (cached) return res.redirect(cached);
 
-  if (!result) {
-    return res.status(404).json({ error: "Invalid URL" });
-  }
+    // 2. DB fallback — also fetch expiresAt for expiry check
+    const [result] = await db
+      .select({
+        targetURL: urlsTable.targetURL,
+        expiresAt: urlsTable.expiresAt,
+      })
+      .from(urlsTable)
+      .where(eq(urlsTable.shortCode, code));
 
-  if (result.expiresAt && result.expiresAt < new Date()) {
-    // await invalidateCachedUrl(code); // TODO: implement invalidateCachedUrl
-    return res.status(410).json({ error: "This link has expired" });
-  }
+    if (!result) return res.status(404).json({ error: "Invalid URL" });
 
-  return res.redirect(result.targetURL);
-}catch (error) {
+    if (result.expiresAt && result.expiresAt < new Date()) {
+      await invalidateCachedUrl(code);
+      return res.status(410).json({ error: "This link has expired" });
+    }
+
+    // 3. Cache on miss
+    await setCachedUrl(code, result.targetURL);
+    return res.redirect(result.targetURL);
+  } catch (error) {
     console.error("Error resolving short URL:", error);
     return res.status(500).json({ error: "Internal server error" });
   }

@@ -24,7 +24,7 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: `User with email ${email} already exists!` });
     }
 
-    const { password: hashedPassword, salt } = hashPasswordWithSalt(password);
+    const { password: hashedPassword, salt } = await hashPasswordWithSalt(password);
 
     const [user] = await db
       .insert(usersTable)
@@ -54,7 +54,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: `User with email ${email} does not exist` });
     }
 
-    const { password: hashedPassword } = hashPasswordWithSalt(password, user.salt);
+    const { password: hashedPassword } = await hashPasswordWithSalt(password, user.salt);
 
     if (hashedPassword !== user.password) {
       return res.status(401).json({ error: "Invalid email or password" });

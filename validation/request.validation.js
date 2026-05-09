@@ -13,14 +13,21 @@ export const loginPostRequestSchema = z.object({
 }); 
 
 export const shortenUrlRequestSchema = z.object({
-    url: z.string().url(),
-    code : z.string().optional(),
+    url: z.string().url().refine(
+      (url) => {
+        const u = new URL(url);
+        return ['http:', 'https:'].includes(u.protocol);
+      },
+      { message: 'Only http/https URLs are allowed' }
+    ),
+    code: z.string()
+      .regex(/^[a-zA-Z0-9_-]+$/, 'Alias must be alphanumeric (plus _ and -)')
+      .min(3, 'Alias must be at least 3 characters')
+      .max(20, 'Alias must be at most 20 characters')
+      .optional(),
+    expiresIn: z.number().int().positive().optional(),
 });
 
 export const bulkShortenRequestSchema = z.object({
-  urls: z.array(z.object({
-    url: z.string().url(),
-    code: z.string().optional(),
-    expiresIn: z.number().optional(),
-  })),
+    urls: z.array(shortenUrlRequestSchema).min(1).max(50),
 });
