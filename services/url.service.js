@@ -1,7 +1,7 @@
 import { db } from "../db/index.js";
 import { urlsTable } from "../models/index.js";
 
-export async function createShortUrl({ shortCode, targetURL, userId }) {
+export async function createShortUrl({ shortCode, targetURL, userId, expiresAt }) {
     try{
   const [result] = await db
     .insert(urlsTable)
@@ -9,6 +9,7 @@ export async function createShortUrl({ shortCode, targetURL, userId }) {
       shortCode,
       targetURL,
       userId,
+      expiresAt,
     })
     .returning({
       id: urlsTable.id,

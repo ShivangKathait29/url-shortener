@@ -16,3 +16,11 @@ export const shortenUrlRequestSchema = z.object({
     url: z.string().url(),
     code : z.string().optional(),
 });
+
+export const bulkShortenRequestSchema = z.object({
+  urls: z.array(z.object({
+    url: z.string().url(),
+    code: z.string().optional(),
+    expiresIn: z.number().optional(),
+  })),
+});
