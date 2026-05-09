@@ -1,5 +1,5 @@
 import express from 'express';
-import { shortenUrlRequestSchema } from "../validation/request.validation.js";
+import { shortenUrlRequestSchema, bulkShortenRequestSchema } from "../validation/request.validation.js";
 import { ensureAuthenticated } from '../middlewares/auth.middleware.js';
 import { createShortUrl } from '../services/url.service.js';
 import { urlsTable } from '../models/url.model.js';
@@ -34,6 +34,25 @@ router.post("/shorten", ensureAuthenticated, async (req, res) => {
         console.error("Error shortening URL:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
+});
+
+router.post("/shorten/bulk", ensureAuthenticated, async (req, res) => {
+  const validation = bulkShortenRequestSchema.safeParse(req.body);
+  if (validation.error) return res.status(400).json({ error: validation.error });
+
+  const results = await Promise.allSettled(
+    validation.data.urls.map(async ({ url, code, expiresIn }) => {
+      const shortCode = code ?? base62Encode(await getNextId());
+      const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 3600000) : null;
+      return createShortUrl({ shortCode, targetURL: url, userId: req.user.id, expiresAt });
+    })
+  );
+
+  return res.status(201).json({
+    results: results.map((r) =>
+      r.status === 'fulfilled' ? { success: true, data: r.value } : { success: false, error: r.reason.message }
+    ),
+  });
 });
 
 router.get('/codes', ensureAuthenticated, async (req, res) => {
@@ -86,13 +105,21 @@ router.get("/:shortCode", async (req, res) => {
     const cached = await getCachedUrl(code);
     if (cached) return res.redirect(cached);
 
-    // 2. DB fallback
+    // 2. DB fallback — also fetch expiresAt for expiry check
     const [result] = await db
-      .select({ targetURL: urlsTable.targetURL })
+      .select({
+        targetURL: urlsTable.targetURL,
+        expiresAt: urlsTable.expiresAt,
+      })
       .from(urlsTable)
       .where(eq(urlsTable.shortCode, code));
 
     if (!result) return res.status(404).json({ error: "Invalid URL" });
+
+    if (result.expiresAt && result.expiresAt < new Date()) {
+      await invalidateCachedUrl(code);
+      return res.status(410).json({ error: "This link has expired" });
+    }
 
     // 3. Cache on miss
     await setCachedUrl(code, result.targetURL);

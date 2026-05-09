@@ -1,14 +1,18 @@
 import { db } from "../db/index.js";
 import { urlsTable } from "../models/index.js";
 
-export async function createShortUrl({ shortCode, targetURL, userId }) {
+export async function createShortUrl({ shortCode, targetURL, userId, expiresAt }) {
     try{
+      if (expiresAt && expiresAt <= new Date()){
+        throw new Error('Expiration date must be in the future');
+      }
   const [result] = await db
     .insert(urlsTable)
     .values({
       shortCode,
       targetURL,
       userId,
+      expiresAt,
     })
     .returning({
       id: urlsTable.id,
