@@ -3,6 +3,9 @@ import { urlsTable } from "../models/index.js";
 
 export async function createShortUrl({ shortCode, targetURL, userId, expiresAt }) {
     try{
+      if (expiresAt && expiresAt <= new Date()){
+        throw new Error('Expiration date must be in the future');
+      }
   const [result] = await db
     .insert(urlsTable)
     .values({
