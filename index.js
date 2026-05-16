@@ -23,7 +23,10 @@ app.get('/', (req, res) => {
   return res.json({status :'Server is up and running...'});
 });
 
-await initCounter();
+await initCounter().catch((err) => {
+  console.error('[Fatal] Could not seed Redis counter:', err);
+  process.exit(1);
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
