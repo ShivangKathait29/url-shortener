@@ -60,11 +60,9 @@ This project uses a highly scalable layered architecture to ensure lightning-fas
 - **Containerization:** Docker Compose
 - **Benchmarking:** Autocannon
 
-<<<<<<< HEAD
+## Getting Started
 
-=======
->>>>>>> f823bb381f46fe8d3bbe963142ddfab47085fb98
-## Prerequisites
+### 1. Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
 - [pnpm](https://pnpm.io/)
@@ -149,7 +147,12 @@ pnpm bench <shortCode>
 `GET /analytics/:code`
 Returns total click count and the last 50 clicks (including IP geo-location, device, and OS data).
 
+### Redirect URL
+`GET /:shortCode`
+Redirects the user to the original target URL. If the URL has expired, it returns a `410 Gone` status and invalidates the cache.
+
 ### Other Endpoints
+- `GET /`: Health check endpoint to verify server status
 - `GET /codes`: List all URLs for the authenticated user
 - `DELETE /:id`: Delete a URL by its ID
 - `POST /user/signup`: Create a new user account
@@ -157,7 +160,7 @@ Returns total click count and the last 50 clicks (including IP geo-location, dev
 
 ## Database Schema Highlights
 - **Users**: Authentication and identity (scrypt hashed passwords).
-- **URLs**: Target mappings, click counts, Base62 code, and `expires_at`.
+- **URLs**: Target mappings, click counts, Base62 code, and `expiresAt` for lifecycle management.
 - **ClickEvents**: High-throughput table for analytics (IP, country, city, user-agent details).
 
 ## License
