@@ -60,7 +60,10 @@ This project uses a highly scalable layered architecture to ensure lightning-fas
 - **Containerization:** Docker Compose
 - **Benchmarking:** Autocannon
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> f823bb381f46fe8d3bbe963142ddfab47085fb98
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
