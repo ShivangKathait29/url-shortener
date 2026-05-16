@@ -12,9 +12,12 @@ export async function getCachedUrl(code) {
   }
 }
 
-export async function setCachedUrl(code, targetUrl) {
+export async function setCachedUrl(code, targetUrl, expiresAt = null) {
    try {
-    await redis.set(`${PREFIX}${code}`, targetUrl, 'EX', TTL);
+    const ttl = expiresAt
+      ? Math.max(1, Math.floor((new Date(expiresAt) - Date.now()) / 1000))
+      : TTL;
+    await redis.set(`${PREFIX}${code}`, targetUrl, 'EX', ttl);
   } catch (error) {
     console.warn('Cache write failed:', error.message);
   }

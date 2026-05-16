@@ -60,16 +60,6 @@ This project uses a highly scalable layered architecture to ensure lightning-fas
 - **Containerization:** Docker Compose
 - **Benchmarking:** Autocannon
 
-## Resume Bullet Points
-
-- **Architected a high-performance URL shortener service** using Node.js, Express, and PostgreSQL, supporting distributed scale and reducing long URLs into highly compact 7-character Base62 aliases.
-- **Implemented a distributed caching layer** using Redis (via `ioredis`) with read-through caching and cache-invalidation strategies, reducing database read load for heavily accessed redirects by an estimated 80%.
-- **Designed a lock-free, atomic ID generation system** using Redis `INCR` to generate unique sequential IDs prior to Base62 encoding, preventing database sequence bottlenecks under high concurrency.
-- **Engineered a secure authentication system** using JWTs and salted password hashing, coupled with strict payload validation via Zod to prevent malformed requests and injection attacks.
-- **Built scalable bulk-processing endpoints** utilizing asynchronous `Promise.allSettled` to handle multiple URL generations concurrently, improving batch processing throughput and gracefully handling partial failures.
-- **Implemented advanced lifecycle management** for URLs, including expiration timestamps and graceful `410 Gone` eviction, integrated with Redis cache invalidation to prevent stale redirects.
-- **Asynchronous Analytics Pipeline:** Offloaded heavy read/write tracking operations to a dedicated background worker via BullMQ, maintaining <50ms response times for the core redirect API.
-- **Containerized the infrastructure** using Docker Compose to orchestrate PostgreSQL and Redis services, ensuring consistent local development and production-ready environments.
 
 ## Prerequisites
 

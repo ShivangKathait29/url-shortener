@@ -124,7 +124,7 @@ router.get("/:shortCode", async (req, res) => {
     }
 
     // 3. Cache on miss
-    await setCachedUrl(code, result.targetURL);
+    await setCachedUrl(code, result.targetURL, result.expiresAt);
 
     enqueueClickEvent({
       urlId: result.id,
